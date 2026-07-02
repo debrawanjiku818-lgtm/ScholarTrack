@@ -48,10 +48,10 @@ export default function Login() {
             router.push("/staff");
             break;
           case "student":
-            router.push("/courses");
+            router.push("/dashboard");
             break;
           default:
-            router.push("/courses");
+            router.push("/dashboard");
         }
       }
     } catch (err) {

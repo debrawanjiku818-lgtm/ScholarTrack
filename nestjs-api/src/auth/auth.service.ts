@@ -68,7 +68,7 @@ export class AuthService {
       case UserRole.STAFF:
         return '/staff';
       case UserRole.STUDENT:
-        return '/courses';
+        return '/dashboard';
       default:
         return '/';
     }
