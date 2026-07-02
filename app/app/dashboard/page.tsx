@@ -1,0 +1,241 @@
+"use client";
+import { useState, useEffect } from "react";
+
+export default function Dashboard() {
+  const [studentName, setStudentName] = useState("");
+  const [enrolledCourses, setEnrolledCourses] = useState<string[]>([]);
+
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    const userStr = localStorage.getItem("user");
+    
+    if (!token || !userStr) {
+      window.location.href = "/student-login";
+      return;
+    }
+
+    const user = JSON.parse(userStr);
+    if (user.role !== "student") {
+      window.location.href = "/student-login";
+      return;
+    }
+
+    setStudentName(user.username || "");
+    
+    const allStudentCourses = localStorage.getItem("studentCourses");
+    if (allStudentCourses) {
+      const coursesMap = JSON.parse(allStudentCourses);
+      setEnrolledCourses(coursesMap[user.username] || []);
+    }
+  }, []);
+
+  const stats = [
+    { label: "Enrolled Courses", value: enrolledCourses.length || 0, icon: "📚", gradient: "from-blue-500 to-cyan-400" },
+    { label: "Completed", value: Math.floor((enrolledCourses.length || 0) * 0.6), icon: "✅", gradient: "from-green-500 to-emerald-400" },
+    { label: "In Progress", value: Math.ceil((enrolledCourses.length || 0) * 0.4), icon: "🔄", gradient: "from-orange-500 to-amber-400" },
+    { label: "Certificates", value: Math.floor((enrolledCourses.length || 0) * 0.5), icon: "🏆", gradient: "from-purple-500 to-pink-400" },
+  ];
+
+  const recentActivity = [
+    { action: "Completed Module 3", course: "Mathematics", time: "2 hours ago", type: "completed" },
+    { action: "Started Quiz", course: "Computer Science", time: "5 hours ago", type: "started" },
+    { action: "Submitted Assignment", course: "Biology", time: "1 day ago", type: "submitted" },
+  ];
+
+  const upcomingDeadlines = [
+    { course: "Mathematics", task: "Chapter 5 Quiz", date: "Tomorrow", priority: "high" },
+    { course: "Computer Science", task: "Project Submission", date: "In 3 days", priority: "medium" },
+    { course: "Biology", task: "Lab Report", date: "In 5 days", priority: "low" },
+  ];
+
+  return (
+    <div className="dashboard-container">
+      {/* Sidebar */}
+      <aside className="dashboard-sidebar">
+        <div className="sidebar-header">
+          <div className="user-avatar">
+            <span>{studentName?.charAt(0).toUpperCase() || "G"}</span>
+          </div>
+          <div className="user-info">
+            <h3>{studentName || "Guest"}</h3>
+            <p>Student</p>
+          </div>
+        </div>
+        
+        <nav className="sidebar-nav">
+          <a href="/dashboard" className="nav-item active">
+            <span>📊</span>
+            <span>Dashboard</span>
+          </a>
+          <a href="/courses" className="nav-item">
+            <span>📚</span>
+            <span>My Courses</span>
+          </a>
+          <a href="#" className="nav-item">
+            <span>📅</span>
+            <span>Schedule</span>
+          </a>
+          <a href="#" className="nav-item">
+            <span>📈</span>
+            <span>Progress</span>
+          </a>
+          <a href="#" className="nav-item">
+            <span>💬</span>
+            <span>Messages</span>
+          </a>
+          <a href="#" className="nav-item">
+            <span>⚙️</span>
+            <span>Settings</span>
+          </a>
+        </nav>
+
+        <div className="sidebar-footer">
+          <button 
+            className="logout-btn"
+            onClick={() => {
+              localStorage.removeItem("token");
+              localStorage.removeItem("user");
+              window.location.href = "/student-login";
+            }}
+          >
+            <span>🚪</span>
+            <span>Logout</span>
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="dashboard-main">
+        <header className="dashboard-header">
+          <div>
+            <h1>Welcome back, {studentName || "Guest"}! 👋</h1>
+            <p>Here's what's happening with your learning journey today.</p>
+          </div>
+          <div className="header-actions">
+            <button className="notification-btn">
+              <span>🔔</span>
+              <span className="notification-badge">3</span>
+            </button>
+          </div>
+        </header>
+
+        {/* Stats Cards */}
+        <div className="stats-grid">
+          {stats.map((stat, index) => (
+            <div key={index} className="stat-card">
+              <div className={`stat-icon ${stat.gradient}`}>
+                <span>{stat.icon}</span>
+              </div>
+              <div className="stat-content">
+                <h3>{stat.value}</h3>
+                <p>{stat.label}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Content Grid */}
+        <div className="content-grid">
+          {/* Course Progress */}
+          <div className="card course-progress-card">
+            <div className="card-header">
+              <h2>📚 Course Progress</h2>
+              <a href="/courses" className="view-all">View All</a>
+            </div>
+            <div className="course-list">
+              {enrolledCourses.length > 0 ? (
+                enrolledCourses.slice(0, 3).map((course, index) => (
+                  <div key={index} className="course-item">
+                    <div className="course-info">
+                      <h4>{course}</h4>
+                      <p>Module {index + 1} of 5</p>
+                    </div>
+                    <div className="course-progress">
+                      <div className="progress-bar">
+                        <div 
+                          className="progress-fill" 
+                          style={{ width: `${(index + 1) * 20}%` }}
+                        ></div>
+                      </div>
+                      <span>{(index + 1) * 20}%</span>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="empty-state">
+                  <p>No courses enrolled yet</p>
+                  <a href="/courses" className="btn-primary">Browse Courses</a>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Recent Activity */}
+          <div className="card activity-card">
+            <div className="card-header">
+              <h2>🕐 Recent Activity</h2>
+            </div>
+            <div className="activity-list">
+              {recentActivity.map((activity, index) => (
+                <div key={index} className="activity-item">
+                  <div className={`activity-icon ${activity.type}`}>
+                    <span>{activity.type === "completed" ? "✅" : activity.type === "started" ? "🔄" : "📝"}</span>
+                  </div>
+                  <div className="activity-content">
+                    <h4>{activity.action}</h4>
+                    <p>{activity.course}</p>
+                  </div>
+                  <span className="activity-time">{activity.time}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Upcoming Deadlines */}
+          <div className="card deadlines-card">
+            <div className="card-header">
+              <h2>⏰ Upcoming Deadlines</h2>
+            </div>
+            <div className="deadlines-list">
+              {upcomingDeadlines.map((deadline, index) => (
+                <div key={index} className="deadline-item">
+                  <div className={`deadline-priority ${deadline.priority}`}></div>
+                  <div className="deadline-content">
+                    <h4>{deadline.task}</h4>
+                    <p>{deadline.course}</p>
+                  </div>
+                  <span className="deadline-date">{deadline.date}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Quick Actions */}
+          <div className="card quick-actions-card">
+            <div className="card-header">
+              <h2>⚡ Quick Actions</h2>
+            </div>
+            <div className="quick-actions-grid">
+              <a href="/courses" className="quick-action">
+                <span>📖</span>
+                <span>Browse Courses</span>
+              </a>
+              <a href="#" className="quick-action">
+                <span>📝</span>
+                <span>Take Quiz</span>
+              </a>
+              <a href="#" className="quick-action">
+                <span>💬</span>
+                <span>Ask Question</span>
+              </a>
+              <a href="#" className="quick-action">
+                <span>📊</span>
+                <span>View Reports</span>
+              </a>
+            </div>
+          </div>
+        </div>
+      </main>
+    </div>
+  );
+}

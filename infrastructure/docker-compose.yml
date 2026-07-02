@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: scholartrack-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: scholartrack
+      POSTGRES_PASSWORD: scholartrack123
+      POSTGRES_DB: scholartrack_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init-scripts:/docker-entrypoint-initdb.d
+    networks:
+      - scholartrack-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U scholartrack"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Next.js Frontend
+  app:
+    build:
+      context: ../app
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://scholartrack:scholartrack123@postgres:5432/scholartrack_db
+    depends_on:
+      - nestjs-api
+      - fastapi-engine
+      - postgres
+    networks:
+      - scholartrack-network
+
+  # NestJS API
+  nestjs-api:
+    build:
+      context: ../nestjs-api
+      dockerfile: Dockerfile
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=development
+      - DATABASE_URL=postgresql://scholartrack:scholartrack123@postgres:5432/scholartrack_db
+    depends_on:
+      - postgres
+    networks:
+      - scholartrack-network
+
+  # FastAPI Engine
+  fastapi-engine:
+    build:
+      context: ../fastapi-engine
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHON_ENV=development
+      - DATABASE_URL=postgresql://scholartrack:scholartrack123@postgres:5432/scholartrack_db
+    depends_on:
+      - postgres
+    networks:
+      - scholartrack-network
+
+volumes:
+  postgres_data:
+
+networks:
+  scholartrack-network:
+    driver: bridge
