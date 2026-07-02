@@ -10,13 +10,13 @@ export default function Dashboard() {
     const userStr = localStorage.getItem("user");
     
     if (!token || !userStr) {
-      window.location.href = "/student-login";
+      window.location.href = "/login";
       return;
     }
 
     const user = JSON.parse(userStr);
     if (user.role !== "student") {
-      window.location.href = "/student-login";
+      window.location.href = "/login";
       return;
     }
 
@@ -95,7 +95,7 @@ export default function Dashboard() {
             onClick={() => {
               localStorage.removeItem("token");
               localStorage.removeItem("user");
-              window.location.href = "/student-login";
+              window.location.href = "/login";
             }}
           >
             <span>🚪</span>

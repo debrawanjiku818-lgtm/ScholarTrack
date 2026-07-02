@@ -17,13 +17,13 @@ export default function Admin() {
     const userStr = localStorage.getItem("user");
     
     if (!token || !userStr) {
-      router.push("/admin-login");
+      router.push("/login");
       return;
     }
 
     const user = JSON.parse(userStr);
     if (user.role !== "admin") {
-      router.push("/admin-login");
+      router.push("/login");
       return;
     }
 
@@ -52,7 +52,7 @@ export default function Admin() {
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("user");
-    router.push("/admin-login");
+    router.push("/login");
   };
 
   const stats = [
