@@ -9,55 +9,48 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    try {
-      const response = await fetch("http://localhost:4000/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ username, password }),
-      });
+    // Hardcoded credentials for demo purposes
+    const users = [
+      { username: "admin", password: "admin123", role: "admin" },
+      { username: "staff", password: "staff123", role: "staff" },
+      { username: "student", password: "student123", role: "student" },
+    ];
 
-      const data = await response.json();
+    const user = users.find(
+      (u) => u.username === username && u.password === password
+    );
 
-      if (!response.ok) {
-        setError(data.message || "Invalid credentials");
-        setLoading(false);
-        return;
-      }
-
-      // Store token and user info
-      localStorage.setItem("token", data.access_token);
-      localStorage.setItem("user", JSON.stringify(data.user));
-
-      // Redirect based on role from API response
-      if (data.redirect) {
-        router.push(data.redirect);
-      } else {
-        // Fallback redirect based on role
-        switch (data.user.role) {
-          case "admin":
-            router.push("/admin");
-            break;
-          case "staff":
-            router.push("/staff");
-            break;
-          case "student":
-            router.push("/dashboard");
-            break;
-          default:
-            router.push("/dashboard");
-        }
-      }
-    } catch (err) {
-      setError("Failed to connect to server. Please try again.");
+    if (!user) {
+      setError("Invalid username or password");
       setLoading(false);
+      return;
     }
+
+    // Store user info in localStorage
+    localStorage.setItem("token", "demo-token-" + Date.now());
+    localStorage.setItem("user", JSON.stringify(user));
+
+    // Redirect based on role
+    switch (user.role) {
+      case "admin":
+        router.push("/admin");
+        break;
+      case "staff":
+        router.push("/staff");
+        break;
+      case "student":
+        router.push("/dashboard");
+        break;
+      default:
+        router.push("/dashboard");
+    }
+
+    setLoading(false);
   };
 
   return (
