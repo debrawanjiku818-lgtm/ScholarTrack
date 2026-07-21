@@ -1,48 +1,91 @@
-import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { User, UserRole } from './user.entity';
-import * as bcrypt from 'bcrypt';
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class UsersService {
-  constructor(
-    @InjectRepository(User)
-    private usersRepository: Repository<User>,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
-  async create(username: string, password: string, role: UserRole, email?: string, fullName?: string): Promise<User> {
-    const salt = await bcrypt.genSalt();
-    const password_hash = await bcrypt.hash(password, salt);
-    
-    const user = this.usersRepository.create({
-      username,
-      password_hash,
-      email,
-      full_name: fullName,
-      role,
+  async findById(id: number) {
+    const user = await this.prisma.user.findUnique({
+      where: { id },
+      include: {
+        enrollments: {
+          include: { course: true },
+        },
+      },
     });
-    
-    return this.usersRepository.save(user);
+    if (!user) {
+      throw new NotFoundException(`User with id ${id} not found`);
+    }
+    return user;
   }
 
-  async findByUsername(username: string): Promise<User | null> {
-    return this.usersRepository.findOne({ where: { username } });
+  async findByUsername(username: string) {
+    return this.prisma.user.findUnique({
+      where: { username },
+      include: {
+        enrollments: {
+          include: { course: true },
+        },
+      },
+    });
   }
 
-  async findById(id: number): Promise<User | null> {
-    return this.usersRepository.findOne({ where: { id } });
+  async findByEmail(email: string) {
+    return this.prisma.user.findUnique({
+      where: { email },
+    });
   }
 
-  async validatePassword(plainPassword: string, hashedPassword: string): Promise<boolean> {
-    return bcrypt.compare(plainPassword, hashedPassword);
+  async findAll() {
+    return this.prisma.user.findMany({
+      include: {
+        enrollments: {
+          include: { course: true },
+        },
+      },
+    });
   }
 
-  async findAll(): Promise<User[]> {
-    return this.usersRepository.find();
+  async update(id: number, data: any) {
+    return this.prisma.user.update({
+      where: { id },
+      data,
+    });
   }
 
-  async findByRole(role: UserRole): Promise<User[]> {
-    return this.usersRepository.find({ where: { role } });
+  async deactivate(id: number) {
+    return this.prisma.user.update({
+      where: { id },
+      data: { isActive: false },
+    });
+  }
+
+  async activate(id: number) {
+    return this.prisma.user.update({
+      where: { id },
+      data: { isActive: true },
+    });
+  }
+
+  async getStudents() {
+    return this.prisma.user.findMany({
+      where: { role: 'STUDENT' },
+      include: {
+        enrollments: {
+          include: { course: true },
+        },
+      },
+    });
+  }
+
+  async getStaff() {
+    return this.prisma.user.findMany({
+      where: {
+        role: {
+          in: ['STAFF', 'PRINCIPAL', 'DEPUTY_PRINCIPAL'],
+        },
+      },
+    });
   }
 }

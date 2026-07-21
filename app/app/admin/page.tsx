@@ -2,259 +2,135 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+interface Stats { totalStudents: number; totalStaff: number; totalEnrollments: number; completedCourses: number; completionPercentage: number; activeCourses: number; }
+interface LogEntry { id: number; username: string; role: string; status: string; ipAddress: string; loginTime: string; }
+interface Course { id: number; name: string; description: string; is_active: boolean; }
+
 export default function Admin() {
-  const [courses, setCourses] = useState<string[]>([
-    "Mathematics", "Computer Science", "Biology", "History", 
-    "Physics", "Chemistry", "Geography", "Literature"
-  ]);
-  const [newCourse, setNewCourse] = useState("");
-  const [adminName, setAdminName] = useState("");
-  const [studentCount, setStudentCount] = useState(0);
+  const [stats, setStats] = useState<Stats | null>(null);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [activeTab, setActiveTab] = useState<"overview" | "logs" | "courses">("overview");
+  const [loading, setLoading] = useState(true);
+  const [notification, setNotification] = useState("");
+  const [newCourse, setNewCourse] = useState({ name: "", description: "" });
+  const [showAddForm, setShowAddForm] = useState(false);
   const router = useRouter();
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
 
   useEffect(() => {
-    const token = localStorage.getItem("token");
+    if (!token) { router.push("/login"); return; }
     const userStr = localStorage.getItem("user");
-    
-    if (!token || !userStr) {
-      router.push("/login");
-      return;
+    if (userStr) {
+      const user = JSON.parse(userStr);
+      const allowed = ["ADMIN", "PRINCIPAL", "DEPUTY_PRINCIPAL"];
+      if (!allowed.includes(user.role)) { router.push("/dashboard"); return; }
     }
-
-    const user = JSON.parse(userStr);
-    if (user.role !== "admin") {
-      router.push("/login");
-      return;
-    }
-
-    setAdminName(user.username || "");
-
-    // Get student count from localStorage
-    const allStudentCourses = localStorage.getItem("studentCourses");
-    if (allStudentCourses) {
-      const coursesMap = JSON.parse(allStudentCourses);
-      setStudentCount(Object.keys(coursesMap).length);
-    }
+    fetchData();
   }, [router]);
 
-  const addCourse = () => {
-    const trimmed = newCourse.trim();
-    if (trimmed && !courses.includes(trimmed)) {
-      setCourses([...courses, trimmed]);
-      setNewCourse("");
-    }
+  const fetchData = async () => {
+    try {
+      const headers = { Authorization: `Bearer ${token}` };
+      const [statsRes, logsRes, coursesRes] = await Promise.all([
+        fetch(`${API_URL}/admin/stats`, { headers }),
+        fetch(`${API_URL}/auth/login-history`, { headers }),
+        fetch(`${API_URL}/courses`, { headers }),
+      ]);
+      if (statsRes.ok) setStats(await statsRes.json());
+      if (logsRes.ok) setLogs(await logsRes.json());
+      if (coursesRes.ok) { const data = await coursesRes.json(); setCourses(data.courses || []); }
+    } catch {} finally { setLoading(false); }
   };
 
-  const removeCourse = (course: string) => {
-    setCourses(courses.filter(c => c !== course));
+  const showNotification = (msg: string) => { setNotification(msg); setTimeout(() => setNotification(""), 3000); };
+
+  const handleAddCourse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch(`${API_URL}/courses`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(newCourse),
+      });
+      if (res.ok) {
+        showNotification("Course added successfully!");
+        setNewCourse({ name: "", description: "" });
+        setShowAddForm(false);
+        fetchData();
+      } else showNotification("Failed to add course");
+    } catch { showNotification("Failed to add course"); }
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    router.push("/login");
+  const handleDeleteCourse = async (courseId: number) => {
+    if (!confirm("Delete this course?")) return;
+    try {
+      const res = await fetch(`${API_URL}/courses/${courseId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) { showNotification("Course removed successfully!"); fetchData(); }
+      else showNotification("Failed to remove course");
+    } catch { showNotification("Failed to remove course"); }
   };
 
-  const stats = [
-    { label: "Total Courses", value: courses.length, icon: "📚", gradient: "from-blue-500 to-cyan-400" },
-    { label: "Total Students", value: studentCount, icon: "👨‍🎓", gradient: "from-green-500 to-emerald-400" },
-    { label: "Active Enrollments", value: studentCount * 3, icon: "📊", gradient: "from-orange-500 to-amber-400" },
-    { label: "Completion Rate", value: "87%", icon: "🎯", gradient: "from-purple-500 to-pink-400" },
-  ];
-
-  const recentActivity = [
-    { action: "New student enrolled", course: "Computer Science", time: "2 hours ago", type: "enrollment" },
-    { action: "Course updated", course: "Mathematics", time: "5 hours ago", type: "update" },
-    { action: "Assignment submitted", course: "Biology", time: "1 day ago", type: "submission" },
-  ];
-
-  if (!adminName) {
-    return <p>Redirecting to login...</p>;
-  }
+  if (loading) return <div className="page-loading">Loading admin panel...</div>;
 
   return (
-    <div className="dashboard-container">
-      {/* Sidebar */}
-      <aside className="dashboard-sidebar">
-        <div className="sidebar-header">
-          <div className="user-avatar admin-avatar">
-            <span>{adminName?.charAt(0).toUpperCase() || "A"}</span>
-          </div>
-          <div className="user-info">
-            <h3>{adminName}</h3>
-            <p>Administrator</p>
-          </div>
-        </div>
-        
-        <nav className="sidebar-nav">
-          <a href="/admin" className="nav-item active">
-            <span>📊</span>
-            <span>Dashboard</span>
-          </a>
-          <a href="#" className="nav-item">
-            <span>📚</span>
-            <span>Manage Courses</span>
-          </a>
-          <a href="#" className="nav-item">
-            <span>👨‍🎓</span>
-            <span>Students</span>
-          </a>
-          <a href="#" className="nav-item">
-            <span>📅</span>
-            <span>Schedule</span>
-          </a>
-          <a href="#" className="nav-item">
-            <span>📈</span>
-            <span>Analytics</span>
-          </a>
-          <a href="#" className="nav-item">
-            <span>⚙️</span>
-            <span>Settings</span>
-          </a>
-        </nav>
-
-        <div className="sidebar-footer">
-          <button onClick={handleLogout} className="logout-btn">
-            <span>🚪</span>
-            <span>Logout</span>
-          </button>
-        </div>
-      </aside>
-
-      {/* Main Content */}
-      <main className="dashboard-main">
-        <header className="dashboard-header">
-          <div>
-            <h1>Welcome back, {adminName}! 👋</h1>
-            <p>Here's what's happening with your school administration today.</p>
-          </div>
-          <div className="header-actions">
-            <button className="notification-btn">
-              <span>🔔</span>
-              <span className="notification-badge">5</span>
-            </button>
-          </div>
-        </header>
-
-        {/* Stats Cards */}
+    <div className="admin-page">
+      {notification && <div className="notification-toast">{notification}</div>}
+      <div className="admin-header"><h1>Admin Dashboard</h1></div>
+      <div className="admin-tabs">
+        <button className={activeTab === "overview" ? "tab-active" : "tab"} onClick={() => setActiveTab("overview")}>Overview</button>
+        <button className={activeTab === "logs" ? "tab-active" : "tab"} onClick={() => setActiveTab("logs")}>Login Logs</button>
+        <button className={activeTab === "courses" ? "tab-active" : "tab"} onClick={() => setActiveTab("courses")}>Manage Courses</button>
+      </div>
+      {activeTab === "overview" && stats && (
         <div className="stats-grid">
-          {stats.map((stat, index) => (
-            <div key={index} className="stat-card">
-              <div className={`stat-icon ${stat.gradient}`}>
-                <span>{stat.icon}</span>
-              </div>
-              <div className="stat-content">
-                <h3>{stat.value}</h3>
-                <p>{stat.label}</p>
-              </div>
-            </div>
-          ))}
+          <div className="stat-card"><div className="stat-icon from-blue-500">👨‍🎓</div><div className="stat-content"><h3>{stats.totalStudents || 0}</h3><p>Total Students</p></div></div>
+          <div className="stat-card"><div className="stat-icon from-green-500">👨‍🏫</div><div className="stat-content"><h3>{stats.totalStaff || 0}</h3><p>Total Staff</p></div></div>
+          <div className="stat-card"><div className="stat-icon from-orange-500">📚</div><div className="stat-content"><h3>{stats.totalEnrollments || 0}</h3><p>Total Enrollments</p></div></div>
+          <div className="stat-card"><div className="stat-icon from-purple-500">✅</div><div className="stat-content"><h3>{stats.completionPercentage || 0}%</h3><p>Completion Rate</p></div></div>
+          <div className="stat-card"><div className="stat-icon from-indigo-500">🎓</div><div className="stat-content"><h3>{stats.completedCourses || 0}</h3><p>Courses Completed</p></div></div>
+          <div className="stat-card"><div className="stat-icon from-blue-500">📖</div><div className="stat-content"><h3>{stats.activeCourses || 0}</h3><p>Active Courses</p></div></div>
         </div>
-
-        {/* Content Grid */}
-        <div className="content-grid">
-          {/* Course Management */}
-          <div className="card course-management-card">
-            <div className="card-header">
-              <h2>📚 Course Management</h2>
-            </div>
-            <div className="add-course-form">
-              <input
-                type="text"
-                placeholder="Add new course"
-                value={newCourse}
-                onChange={(e) => setNewCourse(e.target.value)}
-                className="admin-input"
-              />
-              <button onClick={addCourse} className="btn-primary">Add Course</button>
-            </div>
-            <div className="course-list-admin">
-              {courses.map((course, index) => (
-                <div key={index} className="course-item-admin">
-                  <span>{course}</span>
-                  <button 
-                    onClick={() => removeCourse(course)} 
-                    className="btn-remove-small"
-                  >
-                    Remove
-                  </button>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Recent Activity */}
-          <div className="card activity-card">
-            <div className="card-header">
-              <h2>🕐 Recent Activity</h2>
-            </div>
-            <div className="activity-list">
-              {recentActivity.map((activity, index) => (
-                <div key={index} className="activity-item">
-                  <div className={`activity-icon ${activity.type}`}>
-                    <span>{activity.type === "enrollment" ? "👨‍🎓" : activity.type === "update" ? "📝" : "✅"}</span>
-                  </div>
-                  <div className="activity-content">
-                    <h4>{activity.action}</h4>
-                    <p>{activity.course}</p>
-                  </div>
-                  <span className="activity-time">{activity.time}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Quick Actions */}
-          <div className="card quick-actions-card">
-            <div className="card-header">
-              <h2>⚡ Quick Actions</h2>
-            </div>
-            <div className="quick-actions-grid">
-              <a href="#" className="quick-action">
-                <span>📊</span>
-                <span>View Reports</span>
-              </a>
-              <a href="#" className="quick-action">
-                <span>👨‍🎓</span>
-                <span>Manage Students</span>
-              </a>
-              <a href="#" className="quick-action">
-                <span>📧</span>
-                <span>Send Notice</span>
-              </a>
-              <a href="#" className="quick-action">
-                <span>📅</span>
-                <span>Set Schedule</span>
-              </a>
-            </div>
-          </div>
-
-          {/* System Status */}
-          <div className="card system-status-card">
-            <div className="card-header">
-              <h2>🖥️ System Status</h2>
-            </div>
-            <div className="status-list">
-              <div className="status-item">
-                <span className="status-label">Server Status</span>
-                <span className="status-value online">Online</span>
-              </div>
-              <div className="status-item">
-                <span className="status-label">Database</span>
-                <span className="status-value online">Connected</span>
-              </div>
-              <div className="status-item">
-                <span className="status-label">Storage</span>
-                <span className="status-value warning">75% Used</span>
-              </div>
-              <div className="status-item">
-                <span className="status-label">Last Backup</span>
-                <span className="status-value">2 hours ago</span>
-              </div>
-            </div>
+      )}
+      {activeTab === "logs" && (
+        <div className="card logs-card">
+          <h2>Login History</h2>
+          <div className="table-container">
+            <table className="data-table">
+              <thead><tr><th>User</th><th>Role</th><th>Status</th><th>IP Address</th><th>Time</th></tr></thead>
+              <tbody>{logs.map((log) => (<tr key={log.id}><td>{log.username}</td><td>{log.role || "N/A"}</td><td><span className={`status-badge ${log.status}`}>{log.status}</span></td><td>{log.ipAddress || "N/A"}</td><td>{new Date(log.loginTime).toLocaleString()}</td></tr>))}</tbody>
+            </table>
           </div>
         </div>
-      </main>
+      )}
+      {activeTab === "courses" && (
+        <div>
+          <div className="page-header"><h2>Manage Courses</h2><button className="btn-primary" onClick={() => setShowAddForm(!showAddForm)}>{showAddForm ? "Cancel" : "Add Course"}</button></div>
+          {showAddForm && (
+            <div className="card add-course-form">
+              <h3>Add New Course</h3>
+              <form onSubmit={handleAddCourse}>
+                <div className="form-group"><label>Course Name *</label><input type="text" value={newCourse.name} onChange={(e) => setNewCourse({ ...newCourse, name: e.target.value })} required /></div>
+                <div className="form-group"><label>Description</label><textarea value={newCourse.description} onChange={(e) => setNewCourse({ ...newCourse, description: e.target.value })} rows={3} className="form-textarea" /></div>
+                <button type="submit" className="btn-primary">Add Course</button>
+              </form>
+            </div>
+          )}
+          <div className="courses-grid">
+            {courses.map((course) => (
+              <div key={course.id} className="course-card">
+                <div className="course-info"><h3>{course.name}</h3><p>{course.description || "No description"}</p><span className={`status-badge ${course.is_active ? "active" : "inactive"}`}>{course.is_active ? "Active" : "Inactive"}</span></div>
+                <button className="btn-danger" onClick={() => handleDeleteCourse(course.id)}>Remove</button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

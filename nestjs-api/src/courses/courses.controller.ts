@@ -1,32 +1,33 @@
-import { Controller, Get, Post, Delete, Body, Param } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, ParseIntPipe, UseGuards } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { Public } from '../auth/public.decorator';
+import { CoursesService } from './courses.service';
 
 @Controller('courses')
 export class CoursesController {
-  private courses = [
-    { name: 'Mathematics', description: 'Algebra, geometry, calculus.', image: '/maths.jpg' },
-    { name: 'Computer Science', description: 'Programming, databases, web dev.', image: '/cs.jpg' },
-    { name: 'Biology', description: 'Life sciences and experiments.', image: '/biology.jpg' },
-    { name: 'History', description: 'World history and culture.', image: '/history.jpg' },
-    { name: 'Physics', description: 'Mechanics, thermodynamics, waves.', image: '/physics.jpg' },
-    { name: 'Chemistry', description: 'Organic, inorganic, physical chemistry.', image: '/chemistry.jpg' },
-    { name: 'Geography', description: 'Physical and human geography.', image: '/geography.jpg' },
-    { name: 'Literature', description: 'Poetry, novels, drama analysis.', image: '/literature.jpg' },
-  ];
+  constructor(private coursesService: CoursesService) {}
 
   @Get()
-  getAllCourses() {
-    return this.courses;
+  @Public()
+  async getAllCourses() {
+    const courses = await this.coursesService.findAll();
+    return { courses };
   }
 
   @Post()
-  addCourse(@Body() course: any) {
-    this.courses.push(course);
-    return { message: 'Course added successfully', course };
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'PRINCIPAL', 'DEPUTY_PRINCIPAL', 'STAFF')
+  async addCourse(@Body() body: { name: string; description?: string; image_url?: string }) {
+    const course = await this.coursesService.create(body);
+    return { course, message: 'Course added successfully' };
   }
 
-  @Delete(':courseName')
-  deleteCourse(@Param('courseName') courseName: string) {
-    this.courses = this.courses.filter(c => c.name !== courseName);
-    return { message: `Course ${courseName} deleted successfully` };
+  @Delete(':id')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('ADMIN', 'PRINCIPAL', 'DEPUTY_PRINCIPAL')
+  async deleteCourse(@Param('id', ParseIntPipe) id: number) {
+    return this.coursesService.remove(id);
   }
 }

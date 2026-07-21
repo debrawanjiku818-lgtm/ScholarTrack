@@ -1,0 +1,248 @@
+"use client";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001";
+
+interface Course {
+  id: number;
+  name: string;
+  description: string;
+  image_url: string;
+  is_active: boolean;
+}
+
+interface User {
+  role: string;
+}
+
+export default function Courses() {
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [myEnrollments, setMyEnrollments] = useState<number[]>([]);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [notification, setNotification] = useState("");
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [newCourse, setNewCourse] = useState({ name: "", description: "", image_url: "" });
+  const router = useRouter();
+
+  const token = typeof window !== "undefined" ? localStorage.getItem("token") : null;
+
+  useEffect(() => {
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+    const userStr = localStorage.getItem("user");
+    if (userStr) setUser(JSON.parse(userStr));
+    fetchData();
+  }, [router]);
+
+  const fetchData = async () => {
+    try {
+      const [coursesRes, enrollRes] = await Promise.all([
+        fetch(`${API_URL}/courses`, { headers: { Authorization: `Bearer ${token}` } }),
+        fetch(`${API_URL}/enrollments`, { headers: { Authorization: `Bearer ${token}` } }),
+      ]);
+
+      if (coursesRes.ok) {
+        const data = await coursesRes.json();
+        setCourses(data.courses || []);
+      }
+      if (enrollRes.ok) {
+        const enrollments = await enrollRes.json();
+        setMyEnrollments(enrollments.map((e: any) => e.id));
+      }
+    } catch {
+      // silent
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const showNotification = (msg: string) => {
+    setNotification(msg);
+    setTimeout(() => setNotification(""), 3000);
+  };
+
+  const handleEnroll = async (courseId: number) => {
+    try {
+      const res = await fetch(`${API_URL}/enrollments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ course_id: courseId }),
+      });
+      if (res.ok) {
+        showNotification("Successfully enrolled in course!");
+        fetchData();
+      } else {
+        const data = await res.json();
+        showNotification(data.message || "Enrollment failed");
+      }
+    } catch {
+      showNotification("Failed to enroll");
+    }
+  };
+
+  const handleUnenroll = async (courseId: number) => {
+    try {
+      const res = await fetch(`${API_URL}/enrollments`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ course_id: courseId }),
+      });
+      if (res.ok) {
+        showNotification("Successfully unenrolled from course");
+        fetchData();
+      }
+    } catch {
+      showNotification("Failed to unenroll");
+    }
+  };
+
+  const handleAddCourse = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch(`${API_URL}/courses`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(newCourse),
+      });
+      if (res.ok) {
+        showNotification("Course added successfully!");
+        setNewCourse({ name: "", description: "", image_url: "" });
+        setShowAddForm(false);
+        fetchData();
+      } else {
+        showNotification("Failed to add course");
+      }
+    } catch {
+      showNotification("Failed to add course");
+    }
+  };
+
+  const handleDeleteCourse = async (courseId: number) => {
+    if (!confirm("Are you sure you want to delete this course?")) return;
+    try {
+      const res = await fetch(`${API_URL}/courses/${courseId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (res.ok) {
+        showNotification("Course removed successfully!");
+        fetchData();
+      } else {
+        showNotification("Failed to remove course");
+      }
+    } catch {
+      showNotification("Failed to remove course");
+    }
+  };
+
+  const canManageCourses = user?.role === "ADMIN" || user?.role === "PRINCIPAL" || user?.role === "DEPUTY_PRINCIPAL" || user?.role === "STAFF";
+  const isStudent = user?.role === "STUDENT";
+
+  if (loading) return <div className="page-loading">Loading courses...</div>;
+
+  return (
+    <div className="courses-page">
+      {notification && <div className="notification-toast">{notification}</div>}
+
+      <div className="page-header">
+        <h1>Courses</h1>
+        {canManageCourses && (
+          <button className="btn-primary" onClick={() => setShowAddForm(!showAddForm)}>
+            {showAddForm ? "Cancel" : "Add New Course"}
+          </button>
+        )}
+      </div>
+
+      {showAddForm && canManageCourses && (
+        <div className="card add-course-form">
+          <h3>Add New Course</h3>
+          <form onSubmit={handleAddCourse}>
+            <div className="form-group">
+              <label>Course Name *</label>
+              <input
+                type="text"
+                value={newCourse.name}
+                onChange={(e) => setNewCourse({ ...newCourse, name: e.target.value })}
+                required
+              />
+            </div>
+            <div className="form-group">
+              <label>Description</label>
+              <textarea
+                value={newCourse.description}
+                onChange={(e) => setNewCourse({ ...newCourse, description: e.target.value })}
+                rows={3}
+                className="form-textarea"
+              />
+            </div>
+            <div className="form-group">
+              <label>Image URL</label>
+              <input
+                type="url"
+                value={newCourse.image_url}
+                onChange={(e) => setNewCourse({ ...newCourse, image_url: e.target.value })}
+                placeholder="https://..."
+              />
+            </div>
+            <button type="submit" className="btn-primary">Add Course</button>
+          </form>
+        </div>
+      )}
+
+      <div className="courses-grid">
+        {courses.length === 0 ? (
+          <div className="empty-state">
+            <p>No courses available</p>
+          </div>
+        ) : (
+          courses.map((course) => (
+            <div key={course.id} className="course-card">
+              <div className="course-image">
+                {course.image_url ? (
+                  <img src={course.image_url} alt={course.name} />
+                ) : (
+                  <div className="course-placeholder">📚</div>
+                )}
+              </div>
+              <div className="course-info">
+                <h3>{course.name}</h3>
+                <p>{course.description || "No description"}</p>
+              </div>
+              <div className="course-actions">
+                {isStudent && (
+                  myEnrollments.includes(course.id) ? (
+                    <button className="btn-secondary" onClick={() => handleUnenroll(course.id)}>
+                      Unenroll
+                    </button>
+                  ) : (
+                    <button className="btn-primary" onClick={() => handleEnroll(course.id)}>
+                      Enroll
+                    </button>
+                  )
+                )}
+                {canManageCourses && (
+                  <button className="btn-danger" onClick={() => handleDeleteCourse(course.id)}>
+                    Remove
+                  </button>
+                )}
+              </div>
+            </div>
+          ))
+        )}
+      </div>
+    </div>
+  );
+}

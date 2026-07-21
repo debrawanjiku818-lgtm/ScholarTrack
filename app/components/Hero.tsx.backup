@@ -1,0 +1,393 @@
+"use client";
+import Link from "next/link";
+import { useState, useEffect } from "react";
+
+export default function Hero() {
+  const [stats, setStats] = useState({ students: 0, schools: 0, success: 0 });
+
+  useEffect(() => {
+    const animateStats = () => {
+      const targets = { students: 2000000, schools: 800, success: 95 };
+      const duration = 2000;
+      const steps = 60;
+      const increment = { 
+        students: targets.students / steps, 
+        schools: targets.schools / steps, 
+        success: targets.success / steps 
+      };
+      let current = { students: 0, schools: 0, success: 0 };
+      let step = 0;
+
+      const interval = setInterval(() => {
+        step++;
+        current.students = Math.min(current.students + increment.students, targets.students);
+        current.schools = Math.min(current.schools + increment.schools, targets.schools);
+        current.success = Math.min(current.success + increment.success, targets.success);
+        setStats({ ...current });
+        if (step >= steps) clearInterval(interval);
+      }, duration / steps);
+    };
+    animateStats();
+  }, []);
+
+  const formatNumber = (num: number) => {
+    if (num >= 1000000) return (num / 1000000).toFixed(1) + 'M+';
+    if (num >= 1000) return (num / 1000).toFixed(0) + 'K+';
+    return Math.round(num) + '+';
+  };
+
+  return (
+    <>
+      <section style={{ 
+        padding: '4rem 2rem 2rem', 
+        maxWidth: '1200px', 
+        margin: '0 auto',
+        position: 'relative',
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column'
+      }}>
+        {/* Animated Background Glow */}
+        <div style={{
+          position: 'absolute',
+          top: '-50%',
+          left: '-50%',
+          width: '200%',
+          height: '200%',
+          background: 'radial-gradient(ellipse at center, rgba(99,102,241,0.08) 0%, transparent 70%)',
+          animation: 'spin 20s linear infinite',
+          pointerEvents: 'none',
+          zIndex: 0
+        }} />
+
+        {/* Hero Content */}
+        <div style={{ 
+          textAlign: 'center', 
+          padding: '6rem 0 4rem',
+          position: 'relative',
+          zIndex: 1
+        }}>
+          <div style={{ 
+            display: 'inline-block', 
+            background: 'linear-gradient(135deg, rgba(99,102,241,0.2), rgba(236,72,153,0.2))',
+            padding: '0.75rem 2rem', 
+            borderRadius: '50px', 
+            color: '#a5b4fc', 
+            fontSize: '0.875rem', 
+            fontWeight: '600', 
+            marginBottom: '2rem', 
+            border: '1px solid rgba(99,102,241,0.3)',
+            backdropFilter: 'blur(10px)'
+          }}>
+            🚀 Welcome to ScholarTrack
+          </div>
+
+          <h1 style={{ 
+            fontSize: 'clamp(2.5rem, 6vw, 4.5rem)', 
+            background: 'linear-gradient(135deg, #818cf8, #ec4899, #8b5cf6, #6366f1)',
+            backgroundSize: '300% 300%',
+            WebkitBackgroundClip: 'text', 
+            WebkitTextFillColor: 'transparent', 
+            backgroundClip: 'text',
+            animation: 'gradientShift 6s ease-in-out infinite',
+            marginBottom: '1.5rem',
+            lineHeight: '1.1'
+          }}>
+            Empowering Education<br />Through Technology
+          </h1>
+
+          <p style={{ 
+            fontSize: '1.25rem', 
+            color: '#94a3b8', 
+            maxWidth: '600px', 
+            margin: '0 auto 2.5rem', 
+            lineHeight: '1.8',
+            fontWeight: '300'
+          }}>
+            Transform your learning journey with our innovative platform designed for modern education.
+          </p>
+
+          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center', flexWrap: 'wrap' }}>
+            <Link href="/register" style={{ 
+              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', 
+              color: 'white', 
+              padding: '1rem 2.5rem', 
+              borderRadius: '50px', 
+              fontWeight: '600', 
+              textDecoration: 'none', 
+              transition: 'all 0.3s ease',
+              boxShadow: '0 0 40px rgba(99,102,241,0.4)',
+              border: '1px solid rgba(255,255,255,0.1)',
+              display: 'inline-block'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-3px) scale(1.02)';
+              e.currentTarget.style.boxShadow = '0 0 60px rgba(99,102,241,0.6)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0) scale(1)';
+              e.currentTarget.style.boxShadow = '0 0 40px rgba(99,102,241,0.4)';
+            }}
+            >
+              🚀 Get Started
+            </Link>
+            <Link href="/courses" style={{ 
+              background: 'rgba(255,255,255,0.05)', 
+              color: 'white', 
+              padding: '1rem 2.5rem', 
+              borderRadius: '50px', 
+              fontWeight: '600', 
+              textDecoration: 'none', 
+              border: '1px solid rgba(255,255,255,0.1)',
+              transition: 'all 0.3s ease',
+              backdropFilter: 'blur(10px)',
+              display: 'inline-block'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.1)';
+              e.currentTarget.style.borderColor = 'rgba(99,102,241,0.3)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.1)';
+            }}
+            >
+              📚 Browse Courses
+            </Link>
+          </div>
+        </div>
+
+        {/* Stats Section */}
+        <div style={{ 
+          display: 'grid', 
+          gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+          gap: '2rem', 
+          padding: '3rem 0',
+          position: 'relative',
+          zIndex: 1
+        }}>
+          {[
+            { value: stats.students, label: 'Students', color: '#6366f1', icon: '👨‍🎓' },
+            { value: stats.schools, label: 'Schools', color: '#ec4899', icon: '🏫' },
+            { value: stats.success, label: 'Success Rate', color: '#10b981', icon: '📈' }
+          ].map((item, i) => (
+            <div key={i} style={{ 
+              textAlign: 'center', 
+              padding: '2rem 1.5rem',
+              background: 'rgba(255,255,255,0.03)',
+              borderRadius: '20px',
+              border: '1px solid rgba(255,255,255,0.05)',
+              backdropFilter: 'blur(10px)',
+              transition: 'all 0.4s ease',
+              cursor: 'default'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.transform = 'translateY(-8px)';
+              e.currentTarget.style.background = 'rgba(99,102,241,0.08)';
+              e.currentTarget.style.borderColor = 'rgba(99,102,241,0.2)';
+              e.currentTarget.style.boxShadow = '0 20px 60px rgba(0,0,0,0.3)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'translateY(0)';
+              e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+              e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)';
+              e.currentTarget.style.boxShadow = 'none';
+            }}
+            >
+              <div style={{ fontSize: '2.5rem', marginBottom: '0.5rem' }}>{item.icon}</div>
+              <h3 style={{ 
+                fontSize: '2.5rem', 
+                background: `linear-gradient(135deg, ${item.color}, ${item.color}dd)`,
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                fontWeight: '800'
+              }}>
+                {item.label === 'Success Rate' ? Math.round(item.value) + '%' : formatNumber(item.value)}
+              </h3>
+              <p style={{ color: '#94a3b8', fontSize: '1rem', marginTop: '0.25rem' }}>{item.label}</p>
+            </div>
+          ))}
+        </div>
+
+        {/* Solutions Section */}
+        <div style={{ padding: '4rem 0', position: 'relative', zIndex: 1 }}>
+          <h2 style={{ 
+            textAlign: 'center', 
+            fontSize: 'clamp(1.8rem, 3vw, 2.5rem)', 
+            marginBottom: '3rem',
+            background: 'linear-gradient(135deg, #f8fafc, #94a3b8)',
+            WebkitBackgroundClip: 'text',
+            WebkitTextFillColor: 'transparent',
+            backgroundClip: 'text'
+          }}>
+            Our Educational Solutions
+          </h2>
+
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))', 
+            gap: '1.5rem'
+          }}>
+            {[
+              { icon: '📚', title: 'Online Courses', desc: 'Access thousands of courses from expert educators worldwide.' },
+              { icon: '🤖', title: 'AI Tutoring', desc: 'Personalized learning powered by advanced AI technology.' },
+              { icon: '🔗', title: 'LMS Integration', desc: 'Seamlessly integrate with your existing learning systems.' },
+              { icon: '🎓', title: 'Virtual Classrooms', desc: 'Interactive live sessions with real-time collaboration.' }
+            ].map((item, i) => (
+              <div key={i} style={{ 
+                background: 'rgba(255,255,255,0.03)',
+                padding: '2rem',
+                borderRadius: '20px',
+                border: '1px solid rgba(255,255,255,0.05)',
+                textAlign: 'center',
+                transition: 'all 0.4s ease',
+                backdropFilter: 'blur(10px)',
+                cursor: 'default'
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'translateY(-10px)';
+                e.currentTarget.style.background = 'rgba(99,102,241,0.08)';
+                e.currentTarget.style.borderColor = 'rgba(99,102,241,0.2)';
+                e.currentTarget.style.boxShadow = '0 20px 60px rgba(0,0,0,0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'translateY(0)';
+                e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                e.currentTarget.style.borderColor = 'rgba(255,255,255,0.05)';
+                e.currentTarget.style.boxShadow = 'none';
+              }}
+              >
+                <div style={{ fontSize: '3.5rem', marginBottom: '1rem', display: 'block' }}>{item.icon}</div>
+                <h3 style={{ fontSize: '1.25rem', marginBottom: '0.75rem', color: '#f8fafc' }}>{item.title}</h3>
+                <p style={{ color: '#94a3b8', fontSize: '0.95rem', lineHeight: '1.6' }}>{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* CTA Section */}
+        <div style={{ 
+          textAlign: 'center', 
+          padding: '4rem 2rem',
+          margin: '2rem 0',
+          background: 'linear-gradient(135deg, rgba(99,102,241,0.1), rgba(236,72,153,0.1))',
+          borderRadius: '30px',
+          border: '1px solid rgba(99,102,241,0.1)',
+          position: 'relative',
+          zIndex: 1,
+          backdropFilter: 'blur(10px)'
+        }}>
+          <h2 style={{ fontSize: 'clamp(1.8rem, 3vw, 2.5rem)', marginBottom: '1.5rem' }}>
+            Ready to Transform Your Learning Journey?
+          </h2>
+          <p style={{ color: '#94a3b8', maxWidth: '500px', margin: '0 auto 2rem', fontSize: '1.1rem' }}>
+            Join thousands of students already using ScholarTrack.
+          </p>
+          <Link href="/register" style={{ 
+            background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', 
+            color: 'white', 
+            padding: '1rem 3rem', 
+            borderRadius: '50px', 
+            fontWeight: '600', 
+            textDecoration: 'none', 
+            display: 'inline-block',
+            boxShadow: '0 0 40px rgba(99,102,241,0.3)',
+            transition: 'all 0.3s ease'
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.transform = 'scale(1.05)';
+            e.currentTarget.style.boxShadow = '0 0 60px rgba(99,102,241,0.5)';
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.transform = 'scale(1)';
+            e.currentTarget.style.boxShadow = '0 0 40px rgba(99,102,241,0.3)';
+          }}
+          >
+            Get Started Now 🚀
+          </Link>
+        </div>
+      </section>
+
+      {/* Footer - Full width at the bottom */}
+      <footer style={{ 
+        background: 'rgba(15, 23, 42, 0.95)',
+        backdropFilter: 'blur(20px)',
+        borderTop: '1px solid rgba(255,255,255,0.05)',
+        padding: '3rem 2rem 1.5rem',
+        marginTop: 'auto',
+        width: '100%'
+      }}>
+        <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+          <div style={{ 
+            display: 'grid', 
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', 
+            gap: '2rem',
+            marginBottom: '2rem'
+          }}>
+            <div>
+              <h3 style={{ 
+                fontSize: '1.5rem', 
+                background: 'linear-gradient(135deg, #6366f1, #ec4899)',
+                WebkitBackgroundClip: 'text',
+                WebkitTextFillColor: 'transparent',
+                backgroundClip: 'text',
+                marginBottom: '0.5rem'
+              }}>
+                ScholarTrack
+              </h3>
+              <p style={{ color: '#94a3b8', fontSize: '0.95rem' }}>Empowering Education Through Technology</p>
+              <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+                <span style={{ fontSize: '1.25rem', cursor: 'pointer' }}>🐦</span>
+                <span style={{ fontSize: '1.25rem', cursor: 'pointer' }}>📘</span>
+                <span style={{ fontSize: '1.25rem', cursor: 'pointer' }}>📷</span>
+                <span style={{ fontSize: '1.25rem', cursor: 'pointer' }}>💼</span>
+              </div>
+            </div>
+            
+            <div>
+              <h4 style={{ marginBottom: '0.75rem', color: '#f8fafc' }}>Quick Links</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                <Link href="/" style={{ color: '#94a3b8', textDecoration: 'none', transition: 'color 0.3s' }}>Home</Link>
+                <Link href="/about" style={{ color: '#94a3b8', textDecoration: 'none', transition: 'color 0.3s' }}>About</Link>
+                <Link href="/courses" style={{ color: '#94a3b8', textDecoration: 'none', transition: 'color 0.3s' }}>Courses</Link>
+                <Link href="/contact" style={{ color: '#94a3b8', textDecoration: 'none', transition: 'color 0.3s' }}>Contact</Link>
+              </div>
+            </div>
+            
+            <div>
+              <h4 style={{ marginBottom: '0.75rem', color: '#f8fafc' }}>Contact Us</h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', color: '#94a3b8' }}>
+                <span>📞 0142480452</span>
+                <span>📧 contact@scholartrack.com</span>
+                <span>📍 Virtual Campus</span>
+              </div>
+            </div>
+          </div>
+          
+          <div style={{ 
+            textAlign: 'center', 
+            paddingTop: '1.5rem', 
+            borderTop: '1px solid rgba(255,255,255,0.05)',
+            color: '#64748b',
+            fontSize: '0.875rem'
+          }}>
+            <p>&copy; 2024 ScholarTrack. All rights reserved.</p>
+          </div>
+        </div>
+      </footer>
+
+      <style>{`
+        @keyframes gradientShift {
+          0% { background-position: 0% 50%; }
+          50% { background-position: 100% 50%; }
+          100% { background-position: 0% 50%; }
+        }
+        @keyframes spin {
+          from { transform: rotate(0deg); }
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
+    </>
+  );
+}

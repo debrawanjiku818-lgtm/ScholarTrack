@@ -1,0 +1,67 @@
+"use client";
+import { useState, useEffect } from "react";
+import Link from "next/link";
+
+export default function Navbar() {
+  const [user, setUser] = useState<any>(null);
+
+  useEffect(() => {
+    const checkAuth = () => {
+      const userStr = localStorage.getItem("user");
+      if (userStr) setUser(JSON.parse(userStr));
+      else setUser(null);
+    };
+    checkAuth();
+    window.addEventListener("auth-change", checkAuth);
+    return () => window.removeEventListener("auth-change", checkAuth);
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    setUser(null);
+    window.location.href = "/login";
+  };
+
+  if (!user) {
+    return (
+      <nav className="navbar navbar-darkblue">
+        <div className="navbar-brand">
+          <Link href="/" className="brand-link">
+            <img src="/logo.jpg" alt="ScholarTrack Logo" className="logo" />
+            <span className="brand-name">ScholarTrack</span>
+          </Link>
+        </div>
+        <div className="navbar-links">
+          <Link href="/" className="nav-link">Home</Link>
+          <Link href="/about" className="nav-link">About</Link>
+          <Link href="/courses" className="nav-link">Courses</Link>
+          <Link href="/login" className="nav-link">Sign In</Link>
+        </div>
+      </nav>
+    );
+  }
+
+  return (
+    <nav className="navbar navbar-darkblue">
+      <div className="navbar-brand">
+        <Link href="/" className="brand-link">
+          <img src="/logo.jpg" alt="ScholarTrack Logo" className="logo" />
+          <span className="brand-name">ScholarTrack</span>
+        </Link>
+      </div>
+      <div className="navbar-links">
+        <Link href="/" className="nav-link">Home</Link>
+        <Link href="/courses" className="nav-link">Courses</Link>
+        <Link href="/messages" className="nav-link">Messages</Link>
+        <Link href="/profile" className="nav-link">Profile</Link>
+        {user.role === "STUDENT" && <Link href="/dashboard" className="nav-link">Dashboard</Link>}
+        {user.role === "STAFF" && <Link href="/staff" className="nav-link">Staff Panel</Link>}
+        {(user.role === "ADMIN" || user.role === "PRINCIPAL" || user.role === "DEPUTY_PRINCIPAL") && (
+          <Link href="/admin" className="nav-link">Admin</Link>
+        )}
+        <button onClick={handleLogout} className="nav-link logout">Logout</button>
+      </div>
+    </nav>
+  );
+}

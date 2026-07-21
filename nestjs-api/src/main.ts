@@ -7,6 +7,14 @@ async function bootstrap() {
     origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
     credentials: true,
   });
-  await app.listen(4000);
+  
+  app.getHttpAdapter().get('/health', (req, res) => {
+    res.json({ status: 'ok', timestamp: new Date().toISOString() });
+  });
+  
+  const port = process.env.PORT || 3001;
+  await app.listen(port);
+  console.log(`🚀 ScholarTrack API running on http://localhost:${port}`);
+  console.log(`📊 Health check: http://localhost:${port}/health`);
 }
 bootstrap();

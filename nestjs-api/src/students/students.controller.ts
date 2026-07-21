@@ -1,38 +1,57 @@
-import { Controller, Get, Post, Delete, Param, Body } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Param, ParseIntPipe, UseGuards, Request } from '@nestjs/common';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { StudentsService } from './students.service';
 
 @Controller('students')
+@UseGuards(JwtAuthGuard)
 export class StudentsController {
-  private students: any = {};
+  constructor(private studentsService: StudentsService) {}
 
-  @Get(':studentName')
-  getStudent(@Param('studentName') studentName: string) {
-    if (studentName in this.students) {
-      return this.students[studentName];
-    }
-    return { error: 'Student not found' };
+  @Get()
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'PRINCIPAL', 'DEPUTY_PRINCIPAL', 'STAFF')
+  async getAllStudents() {
+    return this.studentsService.findAll();
   }
 
-  @Post(':studentName/enroll')
-  enrollCourse(@Param('studentName') studentName: string, @Body() body: { courseName: string }) {
-    if (!(studentName in this.students)) {
-      this.students[studentName] = { name: studentName, enrolled_courses: [] };
-    }
-    
-    if (!this.students[studentName].enrolled_courses.includes(body.courseName)) {
-      this.students[studentName].enrolled_courses.push(body.courseName);
-      return { message: `Successfully enrolled in ${body.courseName}` };
-    }
-    return { message: 'Already enrolled in this course' };
+  @Get(':studentId')
+  async getStudent(@Param('studentId', ParseIntPipe) studentId: number) {
+    return this.studentsService.findOne(studentId);
   }
 
-  @Delete(':studentName/enroll/:courseName')
-  unenrollCourse(@Param('studentName') studentName: string, @Param('courseName') courseName: string) {
-    if (studentName in this.students) {
-      if (this.students[studentName].enrolled_courses.includes(courseName)) {
-        this.students[studentName].enrolled_courses = this.students[studentName].enrolled_courses.filter((c: string) => c !== courseName);
-        return { message: `Successfully unenrolled from ${courseName}` };
-      }
-    }
-    return { error: 'Student or course not found' };
+  @Post()
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'PRINCIPAL', 'DEPUTY_PRINCIPAL', 'STAFF')
+  async createStudent(
+    @Body() body: { username: string; password: string; email?: string; fullName?: string },
+  ) {
+    return this.studentsService.create(
+      body.username,
+      body.password,
+      body.email,
+      body.fullName,
+    );
+  }
+
+  @Post(':studentId/enroll')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'PRINCIPAL', 'DEPUTY_PRINCIPAL', 'STAFF')
+  async enrollStudent(
+    @Param('studentId', ParseIntPipe) studentId: number,
+    @Body() body: { courseId: number },
+  ) {
+    return this.studentsService.enroll(studentId, body.courseId);
+  }
+
+  @Delete(':studentId/enroll/:courseId')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN', 'PRINCIPAL', 'DEPUTY_PRINCIPAL', 'STAFF')
+  async unenrollStudent(
+    @Param('studentId', ParseIntPipe) studentId: number,
+    @Param('courseId', ParseIntPipe) courseId: number,
+  ) {
+    return this.studentsService.unenroll(studentId, courseId);
   }
 }

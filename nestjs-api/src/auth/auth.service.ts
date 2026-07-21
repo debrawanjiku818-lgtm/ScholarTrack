@@ -1,76 +1,200 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, ConflictException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
-import { UserRole } from '../users/user.entity';
+import { EmailService } from '../email/email.service';
+import * as bcrypt from 'bcrypt';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class AuthService {
   constructor(
     private usersService: UsersService,
     private jwtService: JwtService,
+    private prisma: PrismaService,
+    private emailService: EmailService,
   ) {}
 
-  async validateUser(username: string, password: string): Promise<any> {
+  async login(username: string, password: string, ip: string) {
     const user = await this.usersService.findByUsername(username);
-    if (!user) {
-      return null;
-    }
-    
-    const isPasswordValid = await this.usersService.validatePassword(password, user.password_hash);
-    if (!isPasswordValid) {
-      return null;
-    }
-    
-    const { password_hash, ...result } = user;
-    return result;
-  }
-
-  async login(username: string, password: string) {
-    const user = await this.validateUser(username, password);
     if (!user) {
       throw new UnauthorizedException('Invalid credentials');
     }
-    
+
+    // Use the correct field names from your schema
+    const passwordValid = await bcrypt.compare(password, user.passwordHash);
+    if (!passwordValid) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException('Account is deactivated');
+    }
+
     const payload = { username: user.username, sub: user.id, role: user.role };
     
+    // Use correct field names for LoginLog
+    await this.prisma.loginLog.create({
+      data: {
+        username: user.username,
+        role: user.role,
+        status: 'success',
+        ipAddress: ip,
+        loginTime: new Date(),
+      },
+    });
+
     return {
       access_token: this.jwtService.sign(payload),
       user: {
         id: user.id,
         username: user.username,
         email: user.email,
-        full_name: user.full_name,
+        fullName: user.fullName,
         role: user.role,
       },
-      redirect: this.getRedirectPath(user.role),
     };
   }
 
-  async register(username: string, password: string, role: UserRole, email?: string, fullName?: string) {
+  async register(username: string, password: string, role: string, email?: string, fullName?: string) {
     const existingUser = await this.usersService.findByUsername(username);
     if (existingUser) {
-      throw new UnauthorizedException('Username already exists');
+      throw new ConflictException('Username already exists');
     }
-    
-    const user = await this.usersService.create(username, password, role, email, fullName);
-    
-    const { password_hash, ...result } = user;
+
+    if (email) {
+      const existingEmail = await this.usersService.findByEmail(email);
+      if (existingEmail) {
+        throw new ConflictException('Email already exists');
+      }
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    // Use correct field names from your schema
+    const user = await this.prisma.user.create({
+      data: {
+        username,
+        passwordHash: hashedPassword,
+        email: email || null,
+        fullName: fullName || null,
+        role: role as any,
+        isActive: true,
+      },
+    });
+
+    if (email) {
+      const verificationToken = this.jwtService.sign(
+        { sub: user.id, email },
+        { expiresIn: '24h' }
+      );
+      
+      await this.emailService.sendVerificationEmail(
+        email,
+        fullName || username,
+        verificationToken
+      );
+    }
+
     return {
-      user: result,
-      message: 'User registered successfully',
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        fullName: user.fullName,
+        role: user.role,
+        isActive: user.isActive,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      },
+      message: email 
+        ? 'Registration successful! Please check your email for verification.'
+        : 'Registration successful!',
     };
   }
 
-  private getRedirectPath(role: UserRole): string {
-    switch (role) {
-      case UserRole.ADMIN:
-        return '/admin';
-      case UserRole.STAFF:
-        return '/staff';
-      case UserRole.STUDENT:
-        return '/dashboard';
-      default:
-        return '/';
+  // ========== FORGOT PASSWORD ==========
+  async forgotPassword(email: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { email },
+    });
+
+    if (!user) {
+      return { message: 'If an account exists with this email, you will receive a password reset link.' };
     }
+
+    const resetToken = this.jwtService.sign(
+      { sub: user.id, email },
+      { expiresIn: '1h' }
+    );
+
+    await this.emailService.sendPasswordResetEmail(
+      user.email,
+      user.fullName || user.username,
+      resetToken
+    );
+
+    return { message: 'If an account exists with this email, you will receive a password reset link.' };
+  }
+
+  // ========== RESET PASSWORD ==========
+  async resetPassword(token: string, newPassword: string) {
+    try {
+      const payload = this.jwtService.verify(token);
+      
+      const user = await this.prisma.user.findUnique({
+        where: { id: payload.sub },
+      });
+
+      if (!user) {
+        throw new UnauthorizedException('Invalid or expired token');
+      }
+
+      const hashedPassword = await bcrypt.hash(newPassword, 10);
+
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { passwordHash: hashedPassword },
+      });
+
+      return { message: 'Password reset successfully!' };
+    } catch (error) {
+      throw new UnauthorizedException('Invalid or expired token');
+    }
+  }
+
+  // ========== EMAIL VERIFICATION ==========
+  async verifyEmail(token: string) {
+    try {
+      const payload = this.jwtService.verify(token);
+      
+      const user = await this.prisma.user.findUnique({
+        where: { id: payload.sub },
+      });
+
+      if (!user) {
+        throw new UnauthorizedException('Invalid or expired token');
+      }
+
+      if (user.isVerified) {
+        return { message: 'Email already verified' };
+      }
+
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { isVerified: true },
+      });
+
+      return { message: 'Email verified successfully!' };
+    } catch (error) {
+      throw new UnauthorizedException('Invalid or expired token');
+    }
+  }
+
+  async getLoginHistory(user: any) {
+    return this.prisma.loginLog.findMany({
+      where: { username: user.username },
+      orderBy: { loginTime: 'desc' },
+      take: 10,
+    });
   }
 }

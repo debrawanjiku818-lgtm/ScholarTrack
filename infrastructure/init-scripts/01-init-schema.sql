@@ -80,9 +80,11 @@ CREATE INDEX idx_enrollments_course ON enrollments(course_id);
 CREATE INDEX idx_submissions_user ON submissions(user_id);
 CREATE INDEX idx_submissions_assignment ON submissions(assignment_id);
 
--- Insert default admin user (password: admin123 - should be hashed in production)
-INSERT INTO users (username, password_hash, email, full_name, role) 
-VALUES ('admin', '$2b$10$YourHashedPasswordHere', 'admin@scholartrack.com', 'System Administrator', 'admin');
+-- Insert default users (password: admin123/staff123/student123 - demo bypass in login API)
+INSERT INTO users (username, password_hash, email, full_name, role) VALUES
+('admin', '$2b$10$YourHashedPasswordHere', 'admin@scholartrack.com', 'System Administrator', 'admin'),
+('staff', '$2b$10$YourHashedPasswordHere', 'staff@scholartrack.com', 'Staff Member', 'staff'),
+('student', '$2b$10$YourHashedPasswordHere', 'student@scholartrack.com', 'Demo Student', 'student');
 
 -- Insert sample courses
 INSERT INTO courses (name, description, image_url) VALUES

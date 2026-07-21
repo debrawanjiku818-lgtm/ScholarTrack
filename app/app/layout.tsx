@@ -1,17 +1,25 @@
+import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import "./globals.css";
 import Navbar from "../components/Navbar";
 
-export const metadata = {
+const inter = Inter({ subsets: ["latin"] });
+
+export const metadata: Metadata = {
   title: "ScholerTrack - School Website",
   description: "Course selection system",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en">
-      <body>
+      <body className={inter.className}>
         <Navbar />
-        <main>{children}</main>
+        {children}
       </body>
     </html>
   );

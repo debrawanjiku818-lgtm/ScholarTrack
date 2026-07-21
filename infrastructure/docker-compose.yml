@@ -23,22 +23,6 @@ services:
       timeout: 5s
       retries: 5
 
-  # Next.js Frontend
-  app:
-    build:
-      context: ../app
-      dockerfile: Dockerfile
-    ports:
-      - "3000:3000"
-    environment:
-      - NODE_ENV=development
-      - DATABASE_URL=postgresql://scholartrack:scholartrack123@postgres:5432/scholartrack_db
-    depends_on:
-      - nestjs-api
-      - fastapi-engine
-      - postgres
-    networks:
-      - scholartrack-network
 
   # NestJS API
   nestjs-api:
